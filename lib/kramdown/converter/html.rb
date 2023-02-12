@@ -50,6 +50,49 @@ module Kramdown
         # stash string representation of symbol to avoid allocations from multiple interpolations.
         @highlighter_class = " highlighter-#{options[:syntax_highlighter]}"
         @dispatcher = Hash.new {|h, k| h[k] = :"convert_#{k}" }
+
+        # Check of Kramdown model must be post-processed before export.
+        @bulma_responsive_tables = @options[:bulma_responsive_tables]
+        post_process(options)
+      end
+
+      # Post-propress Kramdown model if required
+      def post_process(options)
+        if @bulma_responsive_tables
+          post_process_data_label_attribute_recursively(root)
+        end
+      end
+
+      # Iterate over the Kramdown model recursively and find all TABLE elements.
+      def post_process_data_label_attribute_recursively(el)
+        if el.type == :table
+          post_process_data_label_attribute(el)
+        else
+          el.children.each do |child|
+            post_process_data_label_attribute_recursively(child)
+          end
+        end
+      end
+
+      # For a elements representing a table get the THEAD section, extract the column headers and copy
+      # them the data entries of the rows. See option bulma_responsive_tables for a more detailed
+      # description.
+      def post_process_data_label_attribute(el)
+
+        thead_el = el.children[0]
+        tr_el = thead_el.children[0]
+        column_headers = []
+
+        tr_el.children.each_with_index do |child, index|
+          column_headers[index] = inner(child, 0)
+        end
+
+        tbody_el = el.children[1]
+        tbody_el.children.each do |tr|
+          tr.children.each_with_index do |td,index|
+            td.attr["data-label"] = column_headers[index]
+          end
+        end
       end
 
       # Dispatch the conversion of the element +el+ to a +convert_TYPE+ method using the +type+ of
@@ -92,6 +135,10 @@ module Kramdown
         else
           format_as_block_html("p", el.attr, inner(el, indent), indent)
         end
+      end
+
+      def convert_div(el, indent)
+        format_as_indented_block_html("div", el.attr, inner(el, indent), indent)
       end
 
       # Helper method used by +convert_p+ to convert a paragraph that only contains a single :img
@@ -236,12 +283,36 @@ module Kramdown
       alias convert_xml_pi convert_xml_comment
 
       def convert_table(el, indent)
+
+        if @bulma_responsive_tables and ! el.attr.key?("class")
+          el.attr["class"] = "table"
+
+          div1 = Element.new(:div)
+          div1.attr["class"] = "container"
+
+          div2 = Element.new(:div)
+          div2.attr["class"] = "b-table"
+
+          div3 = Element.new(:div)
+          div3.attr["class"] = "table-wrapper has-mobile-cards"
+
+          div1.children = [ div2 ]
+          div2.children = [ div3 ]
+          div3.children = [ el ]
+
+          format_as_indented_block_html(div1.type, div1.attr, inner(div1, indent), indent)
+        else
+          format_as_indented_block_html(el.type, el.attr, inner(el, indent), indent)
+        end
+      end
+
+      def convert_thead(el, indent)
         format_as_indented_block_html(el.type, el.attr, inner(el, indent), indent)
       end
-      alias convert_thead convert_table
-      alias convert_tbody convert_table
-      alias convert_tfoot convert_table
-      alias convert_tr convert_table
+
+      alias convert_tbody convert_thead
+      alias convert_tfoot convert_thead
+      alias convert_tr convert_thead
 
       ENTITY_NBSP = ::Kramdown::Utils::Entities.entity('nbsp') # :nodoc:
 

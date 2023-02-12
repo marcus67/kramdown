@@ -612,6 +612,23 @@ module Kramdown
       Used by: Kramdown converter
     EOF
 
+    define(:bulma_responsive_tables, Boolean, false, <<~EOF)
+      Activates the support for responsive tables in Bulma provided by the extension of the same name.
+      See https://justboil.github.io/bulma-responsive-tables/ for a description of the extension.
+
+      If set, the Kramdown model will be post-processed during the initialization of the HTML converter by copying the
+      column headers (<THEAD><TR><TH>GET THIS TEXT</TH></TR></THEAD>) to the data entries of each row
+      (<TBODY><TR><TD data-label="AND PUT IT HERE">...</TD></TR></TBODY> ).
+      That way, each row of the table contains all the data required to display it as a separate card on screens with
+      small width (such as mobile phones).
+
+      On output each <TABLE></TABLE> block will be enhanced by wrapping it in a set of three specific <DIV></DIV>
+      blocks to activate the feature.
+
+      Default: False
+      Used by: HTML converter
+    EOF
+
   end
 
 end
